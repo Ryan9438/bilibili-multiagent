@@ -1,0 +1,30 @@
+# ===== config.example.yaml =====
+# agent 平台主配置样例（与 Hermes 风格兼容；其他平台按等价字段映射）。
+# 密钥一律走 .env / providers.yaml，本文件不出现任何凭据。
+
+model:
+  default: ${PROVIDER_MAIN_MODEL}
+  provider: main
+  base_url: ${PROVIDER_MAIN_BASE_URL}
+  api_mode: chat_completions
+
+fallback_providers:          # 加新模型 = 往下 append 一行，零冲突
+  - provider: backup
+
+agent:
+  max_turns: 500
+  reasoning_effort: high
+
+tool_loop_guardrails:
+  warnings_enabled: true
+  hard_stop_enabled: false
+  non_interactive_hard_stop_enabled: true
+  warn_after: { exact_failure: 2, same_tool_failure: 3, idempotent_no_progress: 2 }
+  hard_stop_after: { exact_failure: 5, same_tool_failure: 8, idempotent_no_progress: 5 }
+
+cron:
+  deliver: local             # 铁律：默认 local。origin 会把任务结果推去聊天窗口
+                             #（原部署实测：桌面 GUI 会话静默回退到微信 home channel）
+
+memory:
+  # 跨会话恒定事实进 memory；单条消息/当天排期/一次性状态进 night_log 等临时文件

@@ -1,0 +1,31 @@
+# ===== roles.yaml =====
+# 角色槽：名字完全由你起（本例用了一支「姐妹」团队当示范）。
+# 系统只认槽位与字段，不认名字 —— 你可以只有一个叫「干活」的槽，也可以叫
+# 章鱼/研究员/班主。两条铁律：
+#   1. mission / 脚本 / 协作文档里只出现槽名，永不出现模型 id；
+#   2. 「第二个账号」不是能力，是槽位上的 account 绑定 —— 要不要姐妹由你决定。
+
+slots:
+
+  小鲸鱼:                          # ← 槽名示例 1：执行层（必须有）
+    provider: main                #   指向 providers.yaml 的条目，或写列表做 fallback：
+                                  #   provider: [main, backup]（前者不可用自动降级）
+    account: whale                #   绑定的账号 id（Tier 0 只读模式可省略）
+    persona: profiles/template-operator/SOUL.md   # 人格文件（可选）
+    mission: mission/mission.base.md + tier1
+
+  大姐:                            # ← 槽名示例 2：第二账号执行层（Tier 2 可选）
+    provider: backup
+    account: sister
+    persona: profiles/template-sister/SOUL.md
+    mission: mission/mission.base.md + tier2
+
+  军师:                            # ← 槽名示例 3：副手（只规划不出手，无凭据）
+    provider: main
+    account: null
+    readonly: true                 # 副手层铁律：不发言、不碰凭据
+    mission: null
+
+# 系统据此派生能力标签（启动探测自动写入 provider_probe.json，也显示在驾驶舱）。
+# 例：槽「小鲸鱼」的 provider 探测出 video_vision=false → 看片自动走抽帧路径，
+# 不需要你改任何 mission 或脚本。

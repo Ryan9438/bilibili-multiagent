@@ -1,0 +1,50 @@
+# ===== 凭据与登录态（红区，永不入库）=====
+.env
+*.env
+!*.example
+cookies*.json
+cookies*.json.*
+*.revoked-*
+auth.json
+secure-token-storage.json
+connections.json
+browser-profile/
+*browser-profile*/
+
+# ===== 运行数据（含互动原文与画像）=====
+sessions/
+logs/
+telemetry/
+*.db
+*.db-shm
+*.db-wal
+night_log.json
+seen_msgs.json
+nick_cache.json
+watch_feed.json
+watch_last.txt
+chat.jsonl
+!chat.sample.jsonl
+provider_probe.json
+audio_cache/
+image_cache/
+pending/
+pairing/
+vault/
+platforms/
+weixin/
+bot_relay/
+
+# ===== 隐私文档（协作原文只留在本地）=====
+collaboration/private/
+操作日志*
+memories/
+
+# ===== 常规 =====
+__pycache__/
+*.pyc
+.venv/
+.DS_Store
+*.bak.*
+shots/
+run_*/

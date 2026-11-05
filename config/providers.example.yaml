@@ -1,0 +1,18 @@
+# ===== providers.yaml =====
+# Provider 注册表：名字随便起，系统其余部分永远不引用具体模型 id。
+# tags 是启动探测（setup.py probe）会校验/补充的能力标签，决定走哪条实现路径：
+#   video_vision  能吃视频 → videoread.py 整段读
+#   image_vision  能看图   → bili_shot.py 抽帧流程
+#   tool_use      支持工具 → 完整任务链；否则纯 prompt 单步模式
+providers:
+  main:
+    base_url: ${PROVIDER_MAIN_BASE_URL}
+    api_key:  ${PROVIDER_MAIN_API_KEY}
+    model:    ${PROVIDER_MAIN_MODEL}
+    tags: [image_vision, tool_use]        # 初始猜测，探测后以实测为准
+
+  backup:                                  # 可选：fallback 链成员
+    base_url: ${PROVIDER_BACKUP_BASE_URL}
+    api_key:  ${PROVIDER_BACKUP_API_KEY}
+    model:    ${PROVIDER_BACKUP_MODEL}
+    tags: []

@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>小鲸鱼驾驶舱</title>
+<script src="assets/echarts.min.js"></script>
+<style>
+:root{
+  --bg:#0b0e14; --card:#111620; --line:#1e2634; --fg:#c8d3e2; --dim:#7c8aa1;
+  --accent:#4aa8ff; --green:#35d6a4; --yellow:#ffbe4d; --red:#ff6b6b; --purple:#a78bfa;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden}
+body{
+  background:var(--bg); color:var(--fg); display:flex; flex-direction:column;
+  font:12px/1.45 -apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+header{flex:0 0 auto; display:flex; align-items:center; gap:18px; padding:9px 18px 7px;}
+.brand{display:flex; align-items:baseline; gap:7px; font-size:14px; font-weight:600; letter-spacing:.02em; white-space:nowrap}
+.brand .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent);align-self:center}
+.brand .sub{font-size:10px; font-weight:400; color:var(--dim); letter-spacing:.06em}
+.kpis{display:flex; gap:16px; flex:1 1 auto; overflow:hidden; justify-content:flex-end}
+.kpi{display:flex; flex-direction:column; align-items:flex-end; line-height:1.15}
+.kpi b{font-size:15px; font-weight:600; font-variant-numeric:tabular-nums; letter-spacing:-.01em}
+.kpi span{font-size:9.5px; color:var(--dim); letter-spacing:.05em}
+.meta{font-size:9.5px; color:var(--dim); white-space:nowrap}
+
+nav{flex:0 0 auto; display:flex; gap:4px; padding:0 16px; border-bottom:1px solid var(--line)}
+.tabbtn{
+  appearance:none; background:none; border:none; border-bottom:2px solid transparent;
+  color:var(--dim); font:inherit; font-size:11.5px; padding:7px 11px 8px; cursor:pointer;
+  letter-spacing:.03em; transition:color .12s, border-color .12s;
+}
+.tabbtn:hover{color:var(--fg)}
+.tabbtn.on{color:var(--accent); border-bottom-color:var(--accent)}
+
+main{flex:1 1 auto; min-height:0; position:relative}
+.tab{position:absolute; inset:0; display:none; padding:11px 16px 12px; gap:10px;
+     grid-template-columns:repeat(3,minmax(0,1fr)); grid-template-rows:repeat(2,minmax(0,1fr))}
+.tab.on{display:grid}
+
+.card{background:var(--card); border:1px solid var(--line); border-radius:8px; padding:8px 10px 6px;
+      display:flex; flex-direction:column; min-height:0; min-width:0; overflow:hidden}
+.card h3{margin:0 0 4px; font-size:10.5px; font-weight:600; color:#93a3ba; letter-spacing:.07em;
+         display:flex; justify-content:space-between; align-items:baseline; gap:8px}
+.card h3 em{font-style:normal; font-weight:400; color:var(--dim); font-size:10px; letter-spacing:0}
+.chart{flex:1 1 auto; min-height:0; width:100%}
+.scroll{overflow:auto; flex:1 1 auto; min-height:0; padding-right:2px}
+.scroll::-webkit-scrollbar{width:5px}
+.scroll::-webkit-scrollbar-thumb{background:#25303f;border-radius:3px}
+
+/* 告警 */
+.alerts{display:flex; flex-direction:column; gap:5px}
+.alert{display:flex; gap:8px; align-items:flex-start; padding:5px 8px; border-radius:6px;
+       background:#0d1219; border-left:2px solid var(--dim)}
+.alert.red{border-left-color:var(--red)} .alert.yellow{border-left-color:var(--yellow)}
+.alert.green{border-left-color:var(--green)}
+.alert .t{font-weight:600; font-size:11px}
+.alert .d{color:var(--dim); font-size:10px; margin-top:1px; word-break:break-all}
+
+/* 群聊 */
+.chat{display:flex; flex-direction:column; gap:7px}
+.msg{display:flex; gap:7px}
+.msg img{width:22px;height:22px;border-radius:50%;object-fit:cover;flex:0 0 auto;background:#1a2230}
+.avtxt{width:22px;height:22px;border-radius:50%;flex:0 0 auto;background:#3a2f14;color:#ffd479;
+  display:flex;align-items:center;justify-content:center;font-size:10px}
+.msg .who{font-size:10px;color:var(--accent);font-weight:600}
+.msg .txt{color:#b6c2d4;font-size:10.5px;word-break:break-word}
+
+/* 文档列表/阅读器 */
+#docSearch{width:100%; background:#0c1017; border:1px solid var(--line); color:var(--fg);
+   border-radius:5px; padding:5px 8px; font:inherit; font-size:11px; outline:none; margin-bottom:6px}
+#docSearch:focus{border-color:var(--accent)}
+.doclist{display:flex; flex-direction:column; gap:2px}
+.docrow{padding:4px 6px; border-radius:4px; cursor:pointer; display:flex; justify-content:space-between; gap:6px}
+.docrow:hover{background:#161d29}
+.docrow.on{background:#17263a}
+.docrow .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10.5px}
+.docrow .m{color:var(--dim);font-size:9.5px;white-space:nowrap}
+.reader{overflow:auto; font-size:11px; line-height:1.6; color:#b9c5d6}
+.reader h1,.reader h2,.reader h3{color:#dbe5f2; margin:8px 0 4px; font-size:12.5px}
+.reader h1{font-size:14px}
+.reader code{background:#0c1017;padding:1px 3px;border-radius:3px;font-size:10px;color:var(--accent)}
+.reader pre{background:#0c1017;padding:7px;border-radius:5px;overflow:auto;font-size:10px}
+.reader table{border-collapse:collapse;font-size:10px}
+.reader td,.reader th{border:1px solid var(--line);padding:2px 5px}
+.reader blockquote{border-left:2px solid var(--line);margin:4px 0;padding-left:8px;color:var(--dim)}
+.reader hr{border:none;border-top:1px solid var(--line);margin:8px 0}
+.reader a{color:var(--accent)}
+.empty{color:var(--dim);font-size:11px;padding:10px 0;text-align:center}
+
+/* 各 tab 网格布局 */
+#t0{grid-template-rows:1.05fr 1fr}
+#t0 .alerts-card{grid-column:1/3;grid-row:2}
+#t0 .patrol{grid-column:3;grid-row:2}
+#t1 .cal{grid-column:1/3}
+#t2 .area{grid-column:1/3}
+#t3 .rank{grid-row:1/3}
+#t3 .heat{grid-column:2/4}
+#t4 .matrix{grid-column:1/3}
+#t4 .gantt{grid-column:1/3}
+#t5 .rw{grid-column:1/3}
+#t6 .net{grid-row:1/3}
+#t6 .chat{grid-row:1/3}
+#t7{grid-template-columns:1fr 1fr 1.15fr}
+#t7 .sun{grid-column:1;grid-row:1}
+#t7 .sca{grid-column:2;grid-row:1}
+#t7 .docs{grid-column:3;grid-row:1/3}
+#t7 .reader-card{grid-column:1/3;grid-row:2}
+
+@media (max-width:1180px){
+  .tab{grid-template-columns:repeat(2,minmax(0,1fr))}
+  #t7{grid-template-columns:1fr 1fr}
+  #t7 .docs{grid-column:1/3;grid-row:3}
+  .kpis .kpi:nth-child(n+7){display:none}
+}
+@media (max-width:820px){
+  html,body{overflow:auto}
+  .tab{position:static;display:none;grid-template-columns:1fr;grid-template-rows:none;grid-auto-rows:220px}
+  .tab.on{display:grid}
+  .card{grid-column:auto !important;grid-row:auto !important}
+  .kpis{display:none}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><span class="dot"></span>小鲸鱼驾驶舱<span class="sub">LOCAL DATA</span></div>
+  <div class="kpis" id="kpis"></div>
+  <div class="meta" id="gen"></div>
+</header>
+<nav id="tabs"></nav>
+<main>
+  <section class="tab on" id="t0">
+    <div class="card"><h3>近 14 天消息量<em id="m0"></em></h3><div class="chart" id="c_msg"></div></div>
+    <div class="card"><h3>近 14 天成本（USD）<em id="m1"></em></h3><div class="chart" id="c_cost"></div></div>
+    <div class="card"><h3>最近 24 次 cron 执行<em>绿=成功 红=失败</em></h3><div class="chart" id="c_band"></div></div>
+    <div class="card patrol"><h3>近 13 天夜巡记录<em id="m2"></em></h3><div class="chart" id="c_patrol"></div></div>
+    <div class="card alerts-card"><h3>巡检 <em id="m3"></em></h3><div class="scroll"><div class="alerts" id="alerts"></div></div></div>
+  </section>
+
+  <section class="tab" id="t1">
+    <div class="card cal"><h3>年历热力图 · 每天消息量<em id="m4"></em></h3><div class="chart" id="c_cal"></div></div>
+    <div class="card"><h3>时钟热力图 · 周×小时</h3><div class="chart" id="c_clock"></div></div>
+    <div class="card" style="grid-column:1/3"><h3>按小时分布（全史）</h3><div class="chart" id="c_hour"></div></div>
+  </section>
+
+  <section class="tab" id="t2">
+    <div class="card area"><h3>每日 token 构成<em id="m5"></em></h3><div class="chart" id="c_area"></div></div>
+    <div class="card"><h3>模型 token 占比</h3><div class="chart" id="c_models"></div></div>
+    <div class="card"><h3>缓存命中率</h3><div class="chart" id="c_gauge"></div></div>
+    <div class="card"><h3>单会话成本 × 消息数<em>点越大 token 越多</em></h3><div class="chart" id="c_scat"></div></div>
+    <div class="card"><h3>累计成本</h3><div class="chart" id="c_cum"></div></div>
+  </section>
+
+  <section class="tab" id="t3">
+    <div class="card rank"><h3>工具调用排行<em id="m6"></em></h3><div class="chart" id="c_rank"></div></div>
+    <div class="card heat"><h3>工具 × 日期热力（近 14 天）</h3><div class="chart" id="c_heat"></div></div>
+    <div class="card"><h3>加载最多的 skill</h3><div class="chart" id="c_skill"></div></div>
+    <div class="card"><h3>工具 → 会话来源</h3><div class="chart" id="c_sankey"></div></div>
+  </section>
+
+  <section class="tab" id="t4">
+    <div class="card matrix"><h3>任务台账 · 最近 24 次执行<em>绿=成功 红=失败 灰=跳过</em></h3><div class="chart" id="c_matrix"></div></div>
+    <div class="card"><h3>每日执行量（按 profile）</h3><div class="chart" id="c_cron_daily"></div></div>
+    <div class="card gantt"><h3>故障敞口时间轴<em id="m7"></em></h3><div class="chart" id="c_gantt"></div></div>
+    <div class="card"><h3>cron 告警</h3><div class="scroll"><div class="alerts" id="cronAlerts"></div></div></div>
+  </section>
+
+  <section class="tab" id="t5">
+    <div class="card rw"><h3>每日读取 / 写入<em id="m8"></em></h3><div class="chart" id="c_rw"></div></div>
+    <div class="card"><h3>动作排行</h3><div class="chart" id="c_actions"></div></div>
+    <div class="card"><h3>夜巡记录（近 13 天）</h3><div class="chart" id="c_patrol2"></div></div>
+    <div class="card"><h3>night_log 条目构成</h3><div class="chart" id="c_verdict"></div></div>
+    <div class="card"><h3>动作 → 下一步（按量）</h3><div class="chart" id="c_bsankey"></div></div>
+  </section>
+
+  <section class="tab" id="t6">
+    <div class="card"><h3>六人规模对比（消息量）</h3><div class="chart" id="c_cmp"></div></div>
+    <div class="card net"><h3>关系网<em>边宽=消息量</em></h3><div class="chart" id="c_net"></div></div>
+    <div class="card chat"><h3>姐妹群聊<em id="m9"></em></h3><div class="scroll"><div class="chat" id="chat"></div></div></div>
+    <div class="card"><h3>协作文件归属</h3><div class="chart" id="c_files"></div></div>
+  </section>
+
+  <section class="tab" id="t7">
+    <div class="card sun"><h3>目录规模<em id="m10"></em></h3><div class="chart" id="c_sun"></div></div>
+    <div class="card sca"><h3>文档新鲜度 × 体积</h3><div class="chart" id="c_docscat"></div></div>
+    <div class="card docs"><h3>文档索引<em id="m11"></em></h3>
+      <input id="docSearch" placeholder="搜索标题 / 正文…">
+      <div class="scroll"><div class="doclist" id="doclist"></div></div>
+    </div>
+    <div class="card reader-card"><h3 id="readerTitle">阅读器</h3><div class="reader scroll" id="reader"><div class="empty">点左侧任意文档</div></div></div>
+  </section>
+</main>
+
+<script>
+const D = __DATA__;
+const C = {axis:'#2a3444', text:'#7c8aa1', grid:'#161d29'};
+const AVC = {default:'deepseek', glm:'glm', qwen:'qwen', minimax:'minimax', kimi:'kimi', mimo:'mimo'};
+const fmt = n => n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1e3 ? (n/1e3).toFixed(1)+'k' : n;
+const charts = [];
+
+function opt(o){
+  return Object.assign({
+    backgroundColor:'transparent',
+    textStyle:{color:C.text, fontSize:10, fontFamily:'-apple-system,PingFang SC,sans-serif'},
+    tooltip:{backgroundColor:'#0d1219', borderColor:'#2a3444', textStyle:{color:'#c8d3e2', fontSize:11}},
+    animationDuration:420
+  }, o);
+}
+function mk(id, o){
+  const el = document.getElementById(id);
+  if(!el) return null;
+  const c = echarts.init(el, null, {renderer:'canvas'});
+  c.setOption(o); charts.push(c); return c;
+}
+const axisX = extra => Object.assign({type:'category', axisLine:{lineStyle:{color:C.axis}},
+  axisTick:{show:false}, axisLabel:{color:C.text, fontSize:9}}, extra);
+const axisY = extra => Object.assign({type:'value', splitLine:{lineStyle:{color:C.grid}},
+  axisLabel:{color:C.text, fontSize:9}}, extra);
+
+/* ---------------- 概览 ---------------- */
+function initOverview(){
+  const k = D.kpi;
+  document.getElementById('m0').textContent = '合计 ' + fmt(k.total_msgs) + ' 条';
+  document.getElementById('m1').textContent = '累计 $' + k.cost;
+  document.getElementById('m2').textContent = '今日 ' + k.patrol + ' 条记录';
+  document.getElementById('m3').textContent = D.checks.filter(c=>c.level!=='green').length + ' 项需注意';
+
+  mk('c_msg', opt({
+    grid:{left:34,right:10,top:8,bottom:18},
+    xAxis: axisX({data:k.spark_days}),
+    yAxis: axisY({}),
+    series:[{type:'line', smooth:true, data:k.spark_msgs.map(v=>v[1]), symbol:'none',
+      lineStyle:{color:'#4aa8ff', width:1.6},
+      areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[
+        {offset:0,color:'rgba(74,168,255,.30)'},{offset:1,color:'rgba(74,168,255,0)'}]}}}]
+  }));
+
+  mk('c_cost', opt({
+    grid:{left:34,right:10,top:8,bottom:18},
+    xAxis: axisX({data:k.spark_days}),
+    yAxis: axisY({axisLabel:{color:C.text,fontSize:9,formatter:v=>'$'+v}}),
+    series:[{type:'bar', data:k.spark_cost, itemStyle:{color:'#35d6a4', borderRadius:[2,2,0,0]}, barWidth:'55%'}]
+  }));
+
+  const bandColor = v => v===3?'#35d6a4': v===1?'#ff6b6b': v===2?'#4aa8ff':'#39414f';
+  mk('c_band', opt({
+    grid:{left:8,right:8,top:10,bottom:8},
+    xAxis:{type:'category', show:false, data:k.cron_band.map((_,i)=>i)},
+    yAxis:{type:'category', show:false, data:['run']},
+    visualMap:{show:false, type:'piecewise', dimension:2,
+      pieces:[{value:0,color:'#39414f'},{value:1,color:'#ff6b6b'},{value:2,color:'#4aa8ff'},{value:3,color:'#35d6a4'}]},
+    series:[{type:'heatmap', data:k.cron_band.map((v,i)=>[i,0,v]),
+      itemStyle:{borderColor:'#0b0e14', borderWidth:1}}]
+  }));
+
+  mk('c_patrol', opt({
+    grid:{left:30,right:10,top:8,bottom:18},
+    xAxis: axisX({data:k.patrol_series.map(x=>x[0])}),
+    yAxis: axisY({minInterval:1}),
+    series:[{type:'bar', data:k.patrol_series.map(x=>x[1]),
+      itemStyle:{color:'#a78bfa', borderRadius:[2,2,0,0]}, barWidth:'55%'}]
+  }));
+
+  renderAlerts('alerts', D.checks);
+}
+
+/* ---------------- 时间 ---------------- */
+function initTime(){
+  const cal = D.time.cal;
+  const maxV = Math.max.apply(null, cal.map(x=>x[1]).concat([1]));
+  document.getElementById('m4').textContent = D.time.span[0] + ' → ' + D.time.span[1] + ' · ' + cal.length + ' 天';
+  mk('c_cal', opt({
+    tooltip:{formatter: p => p.value[0] + '：' + p.value[1] + ' 条消息'},
+    visualMap:{min:0, max:maxV, orient:'horizontal', left:'center', bottom:2,
+      itemWidth:10, itemHeight:60, text:['多','少'], textStyle:{color:C.text, fontSize:9},
+      inRange:{color:['#161f2b','#1d4d7a','#2a86d8','#4aa8ff']}},
+    calendar:{top:22, left:40, right:16, bottom:34, range:[cal[0][0], cal[cal.length-1][0]],
+      cellSize:['auto',15], splitLine:{lineStyle:{color:'#0b0e14'}},
+      itemStyle:{color:'transparent', borderWidth:1, borderColor:'#0b0e14'},
+      dayLabel:{color:C.text, fontSize:9, nameMap:'ZH'},
+      monthLabel:{color:C.text, fontSize:9, nameMap:'ZH'},
+      yearLabel:{color:C.text, fontSize:9}},
+    series:[{type:'heatmap', coordinateSystem:'calendar', data:cal}]
+  }));
+
+  const wk = ['周一','周二','周三','周四','周五','周六','周日'];
+  const maxC = Math.max.apply(null, D.time.clock.map(x=>x[2]).concat([1]));
+  mk('c_clock', opt({
+    grid:{left:32,right:8,top:6,bottom:20},
+    tooltip:{formatter: p => wk[p.value[1]] + ' ' + p.value[0] + ':00 — ' + p.value[2] + ' 条'},
+    visualMap:{show:false, min:0, max:maxC, inRange:{color:['#101823','#1d4d7a','#2a86d8','#4aa8ff']}},
+    xAxis:{type:'category', data:Array.from({length:24},(_,i)=>i), axisLine:{lineStyle:{color:C.axis}},
+      axisTick:{show:false}, axisLabel:{color:C.text, fontSize:8.5, interval:2}},
+    yAxis:{type:'category', data:wk, axisLine:{show:false}, axisTick:{show:false},
+      axisLabel:{color:C.text, fontSize:9}},
+    series:[{type:'heatmap', data:D.time.clock, itemStyle:{borderColor:'#0b0e14', borderWidth:1}}]
+  }));
+
+  mk('c_hour', opt({
+    grid:{left:40,right:12,top:10,bottom:20},
+    tooltip:{formatter: p => p.value[0] + ':00 前后 ' + p.value[1] + ' 条'},
+    xAxis: axisX({data:Array.from({length:24},(_,i)=>i+'时'), axisLabel:{color:C.text, fontSize:9, interval:1}}),
+    yAxis: axisY({}),
+    series:[{type:'bar', data:D.time.hourly, barWidth:'62%',
+      itemStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[
+        {offset:0,color:'#4aa8ff'},{offset:1,color:'#16283f'}]}}}]
+  }));
+}
+
+/* ---------------- 资金 ---------------- */
+function initMoney(){
+  const m = D.money;
+  document.getElementById('m5').textContent = '输入 ' + fmt(m.in_tok) + ' / 输出 ' + fmt(m.out_tok) + ' / 缓存 ' + fmt(m.cache_tok);
+  mk('c_area', opt({
+    grid:{left:44,right:10,top:22,bottom:18},
+    legend:{right:0, top:0, itemWidth:8, itemHeight:6, textStyle:{color:C.text, fontSize:9}},
+    tooltip:{trigger:'axis', valueFormatter: v => fmt(v)},
+    xAxis: axisX({data:m.days.map(d=>d.slice(5))}),
+    yAxis: axisY({axisLabel:{color:C.text, fontSize:9, formatter:v=>fmt(v)}}),
+    series:[
+      {name:'缓存读', type:'line', stack:'t', symbol:'none', data:m.stack_cache,
+       lineStyle:{width:0}, areaStyle:{color:'rgba(53,214,164,.42)'}},
+      {name:'输入', type:'line', stack:'t', symbol:'none', data:m.stack_in,
+       lineStyle:{width:0}, areaStyle:{color:'rgba(74,168,255,.42)'}},
+      {name:'输出', type:'line', stack:'t', symbol:'none', data:m.stack_out,
+       lineStyle:{width:0}, areaStyle:{color:'rgba(167,139,250,.5)'}}
+    ]
+  }));
+
+  const md = m.models.slice().reverse();
+  mk('c_models', opt({
+    grid:{left:8,right:52,top:6,bottom:6, containLabel:true},
+    tooltip:{trigger:'axis', axisPointer:{type:'shadow'}, valueFormatter: v => fmt(v)},
+    xAxis: axisY({show:false}),
+    yAxis: axisX({data:md.map(x=>x[0]), axisLabel:{color:C.text, fontSize:9}}),
+    series:[{type:'bar', data:md.map(x=>x[1]), barWidth:'58%',
+      itemStyle:{color:'#4aa8ff', borderRadius:[0,3,3,0]},
+      label:{show:true, position:'right', color:C.text, fontSize:8.5, formatter:p=>fmt(p.value)}}]
+  }));
+
+  mk('c_gauge', opt({
+    series:[{type:'gauge', startAngle:210, endAngle:-30, min:0, max:1, radius:'92%',
+      progress:{show:true, width:9, itemStyle:{color:'#35d6a4'}},
+      axisLine:{lineStyle:{width:9, color:[[1,'#1e2634']]}},
+      pointer:{show:false}, axisTick:{show:false}, splitLine:{show:false}, axisLabel:{show:false},
+      detail:{valueAnimation:true, offsetCenter:[0,'6%'], fontSize:22, fontWeight:600,
+        color:'#35d6a4', formatter: v => (v*100).toFixed(1)+'%'},
+      title:{offsetCenter:[0,'40%'], color:C.text, fontSize:9},
+      data:[{value:m.cache_rate, name:'cache_read / (input+cache)'}]}]
+  }));
+
+  const sd = m.scatter;
+  mk('c_scat', opt({
+    grid:{left:42,right:14,top:10,bottom:20},
+    tooltip:{formatter: p => p.value[3] + '<br>' + p.value[0] + ' 条消息 · $' + p.value[1] + '<br>' + p.value[2] + ' tokens · ' + p.value[4]},
+    xAxis: axisY({splitLine:{show:false}, name:'消息数', nameTextStyle:{color:C.text,fontSize:9}}),
+    yAxis: axisY({name:'USD', nameTextStyle:{color:C.text,fontSize:9}}),
+    series:[{type:'scatter', symbolSize: d => Math.max(5, Math.min(26, Math.sqrt(d[2]/4000))),
+      data: sd.map(s=>[s.msgs, s.cost, s.tok, s.name, s.day]),
+      itemStyle:{color:'rgba(74,168,255,.6)', borderColor:'#4aa8ff'}}]
+  }));
+
+  mk('c_cum', opt({
+    grid:{left:42,right:10,top:10,bottom:18},
+    xAxis: axisX({data:m.cum.map(x=>x[0].slice(5))}),
+    yAxis: axisY({axisLabel:{color:C.text,fontSize:9,formatter:v=>'$'+v}}),
+    series:[{type:'line', data:m.cum.map(x=>x[1]), symbol:'none', smooth:true,
+      lineStyle:{color:'#ffbe4d', width:1.6},
+      areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[
+        {offset:0,color:'rgba(255,190,77,.28)'},{offset:1,color:'rgba(255,190,77,0)'}]}}}]
+  }));
+}
+
+/* ---------------- 工具 ---------------- */
+function initTools(){
+  const t = D.tools;
+  document.getElementById('m6').textContent = '共 ' + fmt(t.total) + ' 次';
+  const rk = t.rank.slice().reverse();
+  mk('c_rank', opt({
+    grid:{left:8,right:44,top:4,bottom:4,containLabel:true},
+    tooltip:{trigger:'axis', axisPointer:{type:'shadow'}},
+    xAxis: axisY({show:false}),
+    yAxis: axisX({data:rk.map(x=>x[0]), axisLabel:{color:C.text, fontSize:9.5}}),
+    series:[{type:'bar', data:rk.map(x=>x[1]), barWidth:'62%',
+      itemStyle:{color:(p)=> p.dataIndex > rk.length-3 ? '#a78bfa' : '#4aa8ff', borderRadius:[0,3,3,0]},
+      label:{show:true, position:'right', color:C.text, fontSize:8.5, formatter:p=>fmt(p.value)}}]
+  }));
+
+  mk('c_heat', opt({
+    grid:{left:70,right:10,top:8,bottom:22},
+    tooltip:{formatter: p => t.heat.days[p.value[0]] + ' · ' + t.heat.tools[p.value[1]] + '：' + p.value[2]},
+    visualMap:{show:false, min:0, max:Math.max.apply(null,t.heat.data.map(d=>d[2]).concat([1])),
+      inRange:{color:['#101823','#1d4d7a','#2a86d8','#4aa8ff']}},
+    xAxis:{type:'category', data:t.heat.days, axisLine:{lineStyle:{color:C.axis}},
+      axisTick:{show:false}, axisLabel:{color:C.text, fontSize:8.5}},
+    yAxis:{type:'category', data:t.heat.tools, axisLine:{show:false}, axisTick:{show:false},
+      axisLabel:{color:C.text, fontSize:8.5}},
+    series:[{type:'heatmap', data:t.heat.data, itemStyle:{borderColor:'#0b0e14', borderWidth:1}}]
+  }));
+
+  const sk = t.skills.slice().reverse();
+  mk('c_skill', opt({
+    grid:{left:8,right:30,top:4,bottom:4,containLabel:true},
+    tooltip:{trigger:'axis', axisPointer:{type:'shadow'}},
+    xAxis: axisY({show:false}),
+    yAxis: axisX({data:sk.map(x=>x[0]), axisLabel:{color:C.text, fontSize:8.5, width:96, overflow:'truncate'}}),
+    series:[{type:'bar', data:sk.map(x=>x[1]), barWidth:'58%',
+      itemStyle:{color:'#35d6a4', borderRadius:[0,3,3,0]},
+      label:{show:true, position:'right', color:C.text, fontSize:8, formatter:p=>p.value}}]
+  }));
+
+  mk('c_sankey', opt({
+    tooltip:{trigger:'item'},
+    series:[{type:'sankey', left:6, right:6, top:6, bottom:6, nodeGap:8, nodeWidth:8,
+      label:{color:C.text, fontSize:9}, lineStyle:{color:'gradient', opacity:.28, curveness:.45},
+      itemStyle:{borderWidth:0},
+      data:t.sankey.nodes.map(n=>Object.assign({}, n, {itemStyle:{color:'#4aa8ff'}})),
+      links:t.sankey.links}]
+  }));
+}
+
+/* ---------------- 定时 ---------------- */
+function initCron(){
+  const cr = D.cron;
+  document.getElementById('m7').textContent = cr.runs + ' 条执行记录 · 存活 ' + cr.alive + '/' + cr.total;
+  const mx = cr.matrix;
+  const colorOf = v => v===3?'#35d6a4': v===1?'#ff6b6b': v===2?'#4aa8ff':'#39414f';
+  mk('c_matrix', opt({
+    grid:{left:96,right:10,top:8,bottom:8},
+    tooltip:{formatter: p => mx.labels[p.value[1]] + '<br>' + p.value[3] + ' · ' + p.value[4]},
+    xAxis:{type:'category', show:false, data:mx.cells.map(c=>c[0])},
+    yAxis:{type:'category', data:mx.labels, axisLine:{show:false}, axisTick:{show:false},
+      axisLabel:{color:C.text, fontSize:8.5}},
+    visualMap:{show:false, type:'piecewise', dimension:2,
+      pieces:[{value:0,color:'#39414f'},{value:1,color:'#ff6b6b'},{value:2,color:'#4aa8ff'},{value:3,color:'#35d6a4'}]},
+    series:[{type:'heatmap', data:mx.cells,
+      itemStyle:{borderColor:'#0b0e14', borderWidth:1}}]
+  }));
+
+  mk('c_cron_daily', opt({
+    grid:{left:32,right:8,top:22,bottom:18},
+    legend:{top:0, right:0, itemWidth:8, itemHeight:6, textStyle:{color:C.text, fontSize:9}},
+    tooltip:{trigger:'axis'},
+    xAxis: axisX({data:cr.daily.days}),
+    yAxis: axisY({minInterval:1}),
+    series: cr.daily.series.map((s,i)=>({name:s.name, type:'bar', stack:'d', data:s.data,
+      barWidth:'60%', itemStyle:{color:['#4aa8ff','#35d6a4','#a78bfa','#ffbe4d','#ff6b6b','#4fd1c5'][i%6]}}))
+  }));
+
+  const g = cr.gantt;
+  const cats = g.map((x,i)=>x.name + ' #' + i);
+  const tms = [];
+  g.forEach((x,i)=>{
+    const a = new Date(x.start.replace(' ','T')).getTime();
+    const b = new Date(x.end.replace(' ','T')).getTime();
+    tms.push([i, a, b || a, x.state]);
+  });
+  mk('c_gantt', opt({
+    grid:{left:8,right:16,top:8,bottom:18,containLabel:true},
+    tooltip:{formatter: p => cats[p.value[0]] + '<br>' + new Date(p.value[1]).toLocaleString('zh-CN') + ' → ' + new Date(p.value[2]).toLocaleString('zh-CN') + '<br>' + p.value[3]},
+    xAxis:{type:'time', axisLine:{lineStyle:{color:C.axis}}, axisLabel:{color:C.text, fontSize:8.5},
+      splitLine:{lineStyle:{color:C.grid}}},
+    yAxis:{type:'category', data:cats, axisLine:{show:false}, axisTick:{show:false},
+      axisLabel:{color:C.text, fontSize:8}},
+    series:[{type:'custom', encode:{x:[1,2], y:0},
+      renderItem:(params, api)=>{
+        const y = api.value(0);
+        const st = api.coord([api.value(1), y]);
+        const en = api.coord([api.value(2), y]);
+        return {type:'rect', shape:{x:st[0], y:st[1]-5, width:Math.max(3, en[0]-st[0]), height:10, r:2},
+          style:api.style({fill: api.value(3)==='closed' ? '#35d6a4' : '#ff6b6b', opacity:.85})};
+      }, data:tms}]
+  }));
+  renderAlerts('cronAlerts', cr.alerts);
+}
+
+/* ---------------- B站 ---------------- */
+function initBili(){
+  const b = D.bili;
+  document.getElementById('m8').textContent = '读 ' + b.total_r + ' / 写 ' + b.total_w;
+  mk('c_rw', opt({
+    grid:{left:32,right:34,top:22,bottom:18},
+    legend:{top:0, right:0, itemWidth:8, itemHeight:6, textStyle:{color:C.text, fontSize:9}},
+    tooltip:{trigger:'axis'},
+    xAxis: axisX({data:b.days}),
+    yAxis:[axisY({minInterval:1}), axisY({show:false, minInterval:1})],
+    series:[
+      {name:'读', type:'bar', data:b.reads, barWidth:'52%', itemStyle:{color:'rgba(74,168,255,.75)', borderRadius:[2,2,0,0]}},
+      {name:'写', type:'line', yAxisIndex:1, data:b.writes, smooth:true, symbol:'circle', symbolSize:4,
+       lineStyle:{color:'#ffbe4d', width:1.6}, itemStyle:{color:'#ffbe4d'}}
+    ]
+  }));
+
+  const ac = b.actions.slice().reverse();
+  mk('c_actions', opt({
+    grid:{left:8,right:34,top:4,bottom:4,containLabel:true},
+    tooltip:{trigger:'axis', axisPointer:{type:'shadow'}},
+    xAxis: axisY({show:false}),
+    yAxis: axisX({data:ac.map(x=>x[0]), axisLabel:{color:C.text, fontSize:8.5, width:92, overflow:'truncate'}}),
+    series:[{type:'bar', data:ac.map(x=>x[1]), barWidth:'58%',
+      itemStyle:{color:'#4aa8ff', borderRadius:[0,3,3,0]},
+      label:{show:true, position:'right', color:C.text, fontSize:8, formatter:p=>p.value}}]
+  }));
+
+  mk('c_patrol2', opt({
+    grid:{left:28,right:10,top:10,bottom:18},
+    tooltip:{trigger:'axis'},
+    xAxis: axisX({data:b.patrol_series.map(x=>x[0]), axisLabel:{color:C.text,fontSize:8.5}}),
+    yAxis: axisY({minInterval:1}),
+    series:[{type:'bar', data:b.patrol_series.map(x=>x[1]), barWidth:'58%',
+      itemStyle:{color:'#a78bfa', borderRadius:[2,2,0,0]},
+      markLine:{silent:true, symbol:'none', lineStyle:{color:'#ff6b6b', type:'dashed'},
+        label:{color:'#ff6b6b', fontSize:8, formatter:'4 趟上限'}, data:[{yAxis:4}]}}]
+  }));
+
+  mk('c_verdict', opt({
+    tooltip:{trigger:'item', formatter:'{b}: {c} ({d}%)'},
+    legend:{bottom:0, itemWidth:8, itemHeight:6, textStyle:{color:C.text, fontSize:9}},
+    series:[{type:'pie', radius:['44%','70%'], center:['50%','44%'], label:{show:false},
+      itemStyle:{borderColor:'#111620', borderWidth:2},
+      data:b.verdicts.map((v,i)=>({name:v[0], value:v[1],
+        itemStyle:{color:['#4aa8ff','#39414f'][i%2]}}))}]
+  }));
+
+  mk('c_bsankey', opt({
+    tooltip:{trigger:'item'},
+    series:[{type:'sankey', left:6, right:6, top:6, bottom:6, nodeGap:10, nodeWidth:9,
+      label:{color:C.text, fontSize:9.5}, lineStyle:{color:'gradient', opacity:.3, curveness:.5},
+      itemStyle:{borderWidth:0},
+      data:b.sankey.nodes.map(n=>({name:n.name, itemStyle:{color:'#35d6a4'}})),
+      links:b.sankey.links}]
+  }));
+}
+
+/* ---------------- 姊妹 ---------------- */
+function initSisters(){
+  const s = D.sisters;
+  document.getElementById('m9').textContent = s.chat.length + ' 条';
+  const cmp = s.compare.slice().reverse();
+  mk('c_cmp', opt({
+    grid:{left:8,right:40,top:4,bottom:4,containLabel:true},
+    tooltip:{trigger:'axis', axisPointer:{type:'shadow'},
+      formatter: ps => { const i = ps[0].dataIndex; const c = cmp[i];
+        return c.name + '<br>消息 ' + c.msgs + ' · 会话 ' + c.sessions + '<br>token ' + fmt(c.tokens) + ' · $' + c.cost + ' · ' + c.mb + 'MB'; }},
+    xAxis: axisY({show:false}),
+    yAxis: axisX({data:cmp.map(x=>x.name), axisLabel:{color:C.text, fontSize:9.5}}),
+    series:[{type:'bar', data:cmp.map(x=>x.msgs), barWidth:'58%',
+      itemStyle:{color:(p)=>['#4aa8ff','#35d6a4','#a78bfa','#ffbe4d','#ff6b6b','#4fd1c5'][p.dataIndex%6], borderRadius:[0,3,3,0]},
+      label:{show:true, position:'right', color:C.text, fontSize:8.5, formatter:p=>fmt(p.value)}}]
+  }));
+
+  mk('c_net', opt({
+    tooltip:{formatter: p => p.dataType==='node' ? (p.data.name + '<br>消息 ' + (p.data.value||'-') + (p.data.mb? ' · ' + p.data.mb + 'MB':'')) : ''},
+    series:[{type:'graph', layout:'none', roam:false, symbolSize:30,
+      label:{show:true, position:'bottom', color:C.text, fontSize:9},
+      lineStyle:{color:'#2f3d52', opacity:.85, curveness:0},
+      data:s.graph.nodes, links:s.graph.links}]
+  }));
+
+  const cw = {owner:'主人', default:'小鲸鱼', glm:'GLM', qwen:'Qwen',
+    minimax:'Mini', kimi:'Kimi', mimo:'Mimo'};
+  document.getElementById('chat').innerHTML = s.chat.length ? s.chat.map(m=>{
+    const n = cw[m.from] || m.from;
+    const av = AVC[m.from] ? 'assets/avatars/'+AVC[m.from]+'.png' : '';
+    return '<div class="msg">' + (av?'<img src="'+av+'">':'<div class="avtxt">主</div>') +
+      '<div><div class="who">'+n+' <span style="color:#5a677d;font-weight:400">'+m.t+'</span></div>'+
+      '<div class="txt">'+esc(m.text)+'</div></div></div>';
+  }).join('') : '<div class="empty">暂无消息</div>';
+
+  const fl = s.files;
+  mk('c_files', opt({
+    tooltip:{trigger:'item', formatter:'{b}: {c} 份 ({d}%)'},
+    legend:{bottom:0, itemWidth:8, itemHeight:6, textStyle:{color:C.text, fontSize:9}},
+    series:[{type:'pie', radius:['40%','66%'], center:['50%','42%'], label:{show:false},
+      itemStyle:{borderColor:'#111620', borderWidth:2},
+      data:fl.map((x,i)=>({name:x[0], value:x[1],
+        itemStyle:{color:['#4aa8ff','#35d6a4','#a78bfa','#ffbe4d','#ff6b6b','#4fd1c5'][i%6]}}))}]
+  }));
+}
+
+/* ---------------- 文档 ---------------- */
+function initDocs(){
+  const d = D.docs;
+  document.getElementById('m10').textContent = d.count + ' 篇 / ' + (d.total_kb/1024).toFixed(1) + ' MB';
+  document.getElementById('m11').textContent = d.index.length + ' 条';
+  mk('c_sun', opt({
+    tooltip:{formatter: p => p.name + '<br>' + p.value + ' KB'},
+    series:[{type:'sunburst', radius:['18%','96%'], center:['50%','50%'],
+      itemStyle:{borderColor:'#111620', borderWidth:1},
+      label:{color:'#dfe8f5', fontSize:8.5, rotate:'radial'},
+      data:[{name:'文档', itemStyle:{color:'#1b2534'}, children:d.sunburst.map((x,i)=>({
+        name:x.name, value:x.value,
+        itemStyle:{color:['#4aa8ff','#35d6a4','#a78bfa','#ffbe4d','#ff6b6b','#4fd1c5','#63b3ed','#f6ad55'][i%8]}}))}]}]
+  }));
+
+  mk('c_docscat', opt({
+    grid:{left:40,right:12,top:10,bottom:20},
+    tooltip:{formatter: p => p.value[2] + '<br>' + p.value[0] + ' · ' + p.value[1] + ' KB'},
+    xAxis:{type:'time', axisLine:{lineStyle:{color:C.axis}}, axisLabel:{color:C.text, fontSize:8.5},
+      splitLine:{show:false}},
+    yAxis: axisY({name:'KB', nameTextStyle:{color:C.text,fontSize:8}, splitLine:{lineStyle:{color:C.grid}}}),
+    series:[{type:'scatter', data:d.scatter.map(x=>[new Date(x[0]).getTime(), x[1], x[2]]),
+      symbolSize: v => Math.max(3, Math.min(14, Math.sqrt(v[1]/3))),
+      itemStyle:{color:'rgba(74,168,255,.55)', borderColor:'#4aa8ff'}}]
+  }));
+
+  renderDocList(d.index, '');
+  document.getElementById('docSearch').addEventListener('input', e => renderDocList(d.index, e.target.value.trim()));
+}
+
+function renderDocList(idx, q){
+  const box = document.getElementById('doclist');
+  let list = idx;
+  if(q){
+    const low = q.toLowerCase();
+    list = idx.filter(x => x.n.toLowerCase().includes(low) || (x.body||'').toLowerCase().includes(low));
+    if(q.length > 1) list = list.sort((a,b)=> (b.body.split(q).length-1) - (a.body.split(q).length-1));
+  }
+  list = list.slice(0, 300);
+  box.innerHTML = list.length ? list.map((x,i)=>
+    '<div class="docrow" data-i="'+idx.indexOf(x)+'">'+
+      '<span class="n">'+esc(x.n)+'</span><span class="m">'+x.t.slice(5)+' · '+x.kb+'K</span></div>').join('')
+    : '<div class="empty">没有匹配的文档</div>';
+  box.querySelectorAll('.docrow').forEach(el=>{
+    el.onclick = () => {
+      box.querySelectorAll('.docrow').forEach(n=>n.classList.remove('on'));
+      el.classList.add('on');
+      const item = idx[+el.dataset.i];
+      document.getElementById('readerTitle').textContent = item.n + ' · ' + item.t;
+      document.getElementById('reader').innerHTML = md2html(item.body);
+    };
+  });
+}
+
+/* ---------------- 工具函数 ---------------- */
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function md2html(s){
+  let h = esc(s);
+  h = h.replace(/```([\s\S]*?)```/g, (m,c)=>'<pre>'+c+'</pre>');
+  h = h.replace(/^###### (.*)$/gm,'<h3>$1</h3>').replace(/^#### (.*)$/gm,'<h3>$1</h3>')
+       .replace(/^### (.*)$/gm,'<h3>$1</h3>').replace(/^## (.*)$/gm,'<h2>$1</h2>').replace(/^# (.*)$/gm,'<h1>$1</h1>');
+  h = h.replace(/^&gt; (.*)$/gm,'<blockquote>$1</blockquote>');
+  h = h.replace(/^---$/gm,'<hr>');
+  h = h.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/`([^`]+)`/g,'<code>$1</code>');
+  h = h.replace(/\[([^\]]+)\]\(([^)]+)\)/g,'<a href="$2" target="_blank">$1</a>');
+  h = h.replace(/^\s*[-*] (.*)$/gm,'· $1');
+  return h;
+}
+function renderAlerts(id, arr){
+  document.getElementById(id).innerHTML = arr.map(a=>
+    '<div class="alert '+a.level+'"><div><div class="t">'+esc(a.title)+'</div><div class="d">'+esc(a.detail)+'</div></div></div>'
+  ).join('');
+}
+
+/* ---------------- 启动 ---------------- */
+const TABS = ['概览','时间','资金','工具','定时','B站','姊妹','文档'];
+const INIT = [initOverview, initTime, initMoney, initTools, initCron, initBili, initSisters, initDocs];
+const inited = {};
+
+document.getElementById('tabs').innerHTML = TABS.map((t,i)=>
+  '<button class="tabbtn'+(i===0?' on':'')+'" data-i="'+i+'">'+t+'</button>').join('');
+document.getElementById('tabs').addEventListener('click', e=>{
+  const b = e.target.closest('.tabbtn'); if(!b) return;
+  showTab(+b.dataset.i);
+});
+function showTab(i){
+  document.querySelectorAll('.tab').forEach((t,j)=>t.classList.toggle('on', j===i));
+  document.querySelectorAll('.tabbtn').forEach((t,j)=>t.classList.toggle('on', j===i));
+  if(!inited[i]){ INIT[i](); inited[i]=true; }
+  else { charts.forEach(c=>{ const el=c.getDom(); if(el && el.offsetParent) c.resize(); }); }
+}
+window.addEventListener('resize', ()=>charts.forEach(c=>c.resize()));
+
+// header KPI
+const k = D.kpi;
+const KPI = [
+  ['今日消息', fmt(k.today_msgs)],
+  ['今日 token', fmt(k.today_tokens)],
+  ['B站读/写', k.today_reads+'/'+k.today_writes],
+  ['cron 存活', k.alive_jobs+'/'+k.all_jobs],
+  ['累计成本', '$'+k.cost],
+  ['文档', k.docs],
+  ['总消息', fmt(k.total_msgs)],
+  ['待看视频', k.watch_left]
+];
+document.getElementById('kpis').innerHTML = KPI.map(x=>'<div class="kpi"><b>'+x[1]+'</b><span>'+x[0]+'</span></div>').join('');
+const _ga = new Date(D.generated_at.replace(' ', 'T'));
+const _age = Math.round((Date.now() - _ga.getTime()) / 60000);
+const _reload = '<span style="cursor:pointer;color:#4aa8ff" onclick="location.reload()" title="重新读取最新生成的文件">↻</span>';
+document.getElementById('gen').innerHTML = '生成于 ' + D.generated_at +
+  (_age > 150 ? ' <b style="color:#ffbe4d">· 数据 ' + (_age/60).toFixed(1) + ' 小时前</b>' : '') + ' ' + _reload;
+
+/* 打开页面时若数据超过 3 小时，请本地服务重生成一次；每标签页只自动试一次，防循环 */
+(function autoRefresh(){
+  const LIMIT = 180;
+  if (_age <= LIMIT) return;
+  let tried = false;
+  try { tried = sessionStorage.getItem('hub_refresh_tried') === '1'; } catch(e){}
+  if (tried) return;
+  try { sessionStorage.setItem('hub_refresh_tried', '1'); } catch(e){}
+  const gen = document.getElementById('gen');
+  gen.innerHTML = '数据 ' + (_age/60).toFixed(1) + ' 小时前 · <b style="color:#4aa8ff">正在重生成…</b>';
+  const ping = () => new Promise(resolve => {
+    const img = new Image(); let done = false;
+    const fin = v => { if(!done){ done = true; resolve(v); } };
+    img.onload  = () => fin(true);
+    img.onerror = () => fin(false);
+    setTimeout(() => fin(false), 120000);
+    img.src = 'http://127.0.0.1:8788/api/refresh?t=' + Date.now();
+  });
+  ping().then(ok => {
+    if (ok) { gen.innerHTML = '重生成完成，正在刷新…'; setTimeout(() => location.reload(), 600); }
+    else { gen.innerHTML = '数据 ' + (_age/60).toFixed(1) + ' 小时前 <b style="color:#ffbe4d">· 本地服务未运行，无法自动刷新</b> ' + _reload; }
+  });
+})();
+
+showTab(0);
+</script>
+</body>
+</html>
