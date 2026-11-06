@@ -32,12 +32,28 @@
 ```bash
 cp .env.example .env          # 填一个任意 OpenAI 兼容 provider 的 key
 pip install -r requirements.txt
+python3 setup.py probe        # 能力探测 → provider_probe.json + 推荐 Tier
 python3 scripts/bili_search.py "agent 踩坑"      # 匿名检索
 python3 scripts/bili_shot.py <视频URL> --frames 12   # 抽帧看片
 python3 cockpit/docs_hub_serve.py & open http://127.0.0.1:8788
 ```
 
 想解锁评论/动态/收信（Tier 1+）：准备一个小号 cookie → `docs/security-guide.md` 里先读安全三红线。分层数据见 `docs/out-of-box.md`。
+
+## 🤖 Agent 一键安装（把整段发给你的 agent）
+
+不想手敲？把下面这段话直接发给你正在跑的 agent（Hermes / 任意 CLI agent），让它自己装：
+
+> **Install and configure bilibili-multiagent from `GIT_REPO_URL`.**
+> 动手前先读 `README.md`、`docs/security-guide.md`（凭据红线）、`docs/out-of-box.md`（Tier 分层）。
+> 步骤：clone 到 `~/projects/bilibili-multiagent` → `cp .env.example .env` → **向我本人要 API key：不知道就问，绝不猜测，绝不打印任何已填值** → `pip install -r requirements.txt` → `python3 setup.py probe` 拿到能力标签与推荐 Tier → 实测一条 Tier 0 命令（`bili_search.py`）并回贴输出摘要证明跑通。
+> 铁律：涉及 B 站 cookie 与一切站内写操作（Tier 1+）必须先向我确认；凭据只进 `.env` 与 cookie 文件，永不进日志、不进对话记录、不进任何版本库；缺什么如实报告，不静默降级。
+
+英文精简版（给英文 agent / 海外用户）：
+
+> Install and configure **bilibili-multiagent** from `GIT_REPO_URL`. Read README.md and docs/security-guide.md first. Clone it, `cp .env.example .env`, **ask me for the API key(s) — never guess or echo filled values**, `pip install -r requirements.txt`, run `python3 setup.py probe`, then verify one Tier-0 command (`scripts/bili_search.py`) actually works and paste the output summary. Never touch Bilibili cookies or any write path without my explicit confirmation. Credentials stay in .env/cookie files only — never in logs, chats, or git.
+
+（`GIT_REPO_URL` 在你 push 之后替换为实际仓库地址即可，全文只有此处用到它。）
 
 ## 开箱三原则
 
