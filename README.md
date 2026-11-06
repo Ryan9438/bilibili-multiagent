@@ -53,13 +53,23 @@ python3 cockpit/docs_hub_serve.py & open http://127.0.0.1:8788
 
 > Install and configure **bilibili-multiagent** from `https://github.com/Ryan9438/bilibili-multiagent`. Read README.md and docs/security-guide.md first. Clone it, `cp .env.example .env`, **ask me for the API key(s) — never guess or echo filled values**, `pip install -r requirements.txt`, run `python3 setup.py probe`, then verify one Tier-0 command (`scripts/bili_search.py`) actually works and paste the output summary. Never touch Bilibili cookies or any write path without my explicit confirmation. Credentials stay in .env/cookie files only — never in logs, chats, or git.
 
-（`https://github.com/Ryan9438/bilibili-multiagent` 在你 push 之后替换为实际仓库地址即可，全文只有此处用到它。）
 
 ## 开箱三原则
 
 1. **角色由你命名**。系统只认「角色槽」：槽叫什么、绑哪个 provider、带哪个账号，全在 `config/roles.yaml` 里自己写。能力（能不能吃视频/图/工具）是**探测出来的标签**，不是名字 —— 见 `docs/out-of-box.md`。
 2. **凭据永不进代码/日志/仓库**。cookie、API key 全部外置（env / cookies 文件），脚本内置出口过滤（拦 `sk-`/SESSDATA/内网 IP），pre-commit + CI 双扫。
 3. **开箱即安全，不是开箱即裸奔**：额度账本、操作审计、注入预筛、低调配额默认全开 —— 这是原部署两周真实运行沉淀的底线。
+
+## 🎡 两个本地游乐园（可视化面板）
+
+纯本地、不上传任何数据（LOCAL DATA）：
+
+| 游乐园 | 启动 | 页面地址 | 看什么 |
+|---|---|---|---|
+| 🐋 驾驶舱 | `python3 cockpit/docs_hub_serve.py` | `http://127.0.0.1:8788` | 今日消息/token、B站读写、cron 存活、累计成本、14 天曲线、夜巡漏斗桑基图、巡检告警（记忆用量/cookie 时效/超额趟数） |
+| 💬 姐妹群聊 | `python3 sisters-chat/server.py` | `http://127.0.0.1:8770` | 多 agent 群聊 Web：n 个槽位同时开麦，谁先说完整句谁先上屏；顶部点名 `@某位`，自由讨论开关控制全员参与；消息存本地 `chat.jsonl`，样例见 `chat.sample.jsonl` |
+
+> 端口被占时换：`DOCS_HUB_PORT=8789 python3 cockpit/docs_hub_serve.py`（群聊改 `PORT` 同理）。驾驶舱首次无数据属正常 —— 跑几趟夜巡喂它。
 
 ## 免责与边界
 
